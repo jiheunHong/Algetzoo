@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("algetzoo")
+mcp = FastMCP("algetzoo", host="0.0.0.0", port=8000, streamable_http_path="/mcp")
 
 sessions: Dict[str, Dict[str, Any]] = {}
 
@@ -43,6 +43,7 @@ def set_drinking_plan(
     emergency_contact: str = ""
 ) -> str:
     """Saves today's drinking plan including goal count, condition, estimated return time, and emergency contact."""
+    goal_count = max(1, goal_count)
     session = get_default_session()
     session["plan"] = {
         "goal_count": goal_count,
@@ -115,10 +116,16 @@ def log_drink(
     time: Optional[str] = None
 ) -> str:
     """Logs a drink entry with alcohol type, count, and time."""
+    count = max(1, count)
     session = get_default_session()
 
     if not time:
         time = datetime.now().strftime("%H:%M")
+    else:
+        # HH:MM 포맷 검증, 올바르지 않으면 현재 시각으로 대체
+        if not re.match(r"^\d{2}:\d{2}$", time):
+            time = datetime.now().strftime("%H:%M")
+
     if not session["session_start"]:
         session["session_start"] = time
 
@@ -206,8 +213,10 @@ def drunk_self_check(
         session["safety_state"]["protection_mode"] = True
         return f"🚨 위험 수준입니다. 현재 상태: {feel_level}, 타자 점수: {typing_score}"
     elif feel_level == "약간 취함" or typing_score < 90:
+        session["safety_state"]["protection_mode"] = False
         return f"⚠️ 취기 경보입니다. 현재 상태: {feel_level}, 타자 점수: {typing_score}"
 
+    session["safety_state"]["protection_mode"] = False
     return f"👍 비교적 안정 상태입니다. 현재 상태: {feel_level}, 타자 점수: {typing_score}"
 
 
@@ -217,6 +226,8 @@ def trigger_escape_call(
     scenario_type: str = "급한 일"
 ) -> str:
     """Generates a fake call scenario script and provides action guides to exit uncomfortable drinking spots."""
+    session = get_default_session()
+    session["safety_state"]["escape_requested"] = True
     return f"📞 {caller_name}에게서 '{scenario_type}' 상황의 가짜 전화 시나리오를 시작합니다. 자연스럽게 자리를 정리하고 나와 주세요."
 
 
@@ -249,7 +260,7 @@ def generate_recap(
     goal = session["plan"]["goal_count"]
     achievement = "목표 절주 성공" if total <= goal else "목표량 초과"
 
-    return (
+    recap_text = (
         f"☀️ 음주 회고 리포트\n"
         f"- 총 음주량: {total}잔\n"
         f"- 목표 주량: {goal}잔\n"
@@ -257,7 +268,9 @@ def generate_recap(
         f"- 다음 날 상태: {next_day_condition}\n"
         f"- 추정 지출: {estimated_expense:,}원"
     )
+    session["recap"] = recap_text
+    return recap_text
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000, path="/mcp")
+    mcp.run(transport="streamable-http")
