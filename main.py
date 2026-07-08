@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 mcp = FastMCP("algetzoo", host="0.0.0.0", port=8000, streamable_http_path="/mcp")
 
@@ -35,14 +36,23 @@ def get_default_session() -> Dict[str, Any]:
     return sessions["default"]
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 오늘의 음주 계획(목표 잔 수, 현재 컨디션, 귀가 목표 시각, 비상 연락처)을 저장합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 음주 계획 설정",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def set_drinking_plan(
     goal_count: int = 3,
     condition: str = "좋음",
     eta_time: str = "23:00",
     emergency_contact: str = ""
 ) -> str:
-    """Saves today's drinking plan including goal count, condition, estimated return time, and emergency contact."""
+    """알겠주 서비스에서 오늘의 음주 계획(목표 잔 수, 현재 컨디션, 귀가 목표 시각, 비상 연락처)을 저장합니다."""
     goal_count = max(1, goal_count)
     session = get_default_session()
     session["plan"] = {
@@ -72,13 +82,22 @@ def set_drinking_plan(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 음주 전 사용자의 신체 컨디션(수면 시간, 식사 여부, 피로도)을 진단하고 안전 주량을 조정합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 컨디션 진단 및 주량 조정",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def check_condition(
     sleep_hours: int = 7,
     had_meal: bool = True,
     fatigue_level: str = "보통"
 ) -> str:
-    """Checks user's physical status before starting and recommends goal adjustments."""
+    """알겠주 서비스에서 음주 전 사용자의 신체 컨디션(수면 시간, 식사 여부, 피로도)을 진단하고 안전 주량을 조정합니다."""
     warnings = []
     suggested_modifier = 0
 
@@ -109,13 +128,22 @@ def check_condition(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에 마신 술의 종류와 잔 수, 기록 시각을 등록하고 목표 주량 대비 현재 상태를 확인합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 음주 기록 추가",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False
+    )
+)
 def log_drink(
     drink_type: str,
     count: int = 1,
     time: Optional[str] = None
 ) -> str:
-    """Logs a drink entry with alcohol type, count, and time."""
+    """알겠주 서비스에 마신 술의 종류와 잔 수, 기록 시각을 등록하고 목표 주량 대비 현재 상태를 확인합니다."""
     count = max(1, count)
     session = get_default_session()
 
@@ -145,9 +173,18 @@ def log_drink(
     return f"🍻 음주 기록 완료\n- 마신 술: {drink_type} {count}잔 ({time})\n{status_msg}"
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 현재까지의 음주 속도와 페이스를 분석하여 실시간 위험도와 행동 지침을 제공합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 음주 페이스 분석",
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def monitor_pace() -> str:
-    """Calculates drinking pace and returns warnings if the pace is too fast."""
+    """알겠주 서비스에서 현재까지의 음주 속도와 페이스를 분석하여 실시간 위험도와 행동 지침을 제공합니다."""
     session = get_default_session()
 
     if not session["session_start"] or not session["records"]:
@@ -191,12 +228,21 @@ def monitor_pace() -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 자가진단 및 타자 정확도 테스트를 통해 사용자의 취기 상태를 측정하고 안전 보호 모드를 판단합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 취기 자가진단",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def drunk_self_check(
     feel_level: str = "멀쩡함",
     typing_text_input: str = ""
 ) -> str:
-    """Assesses sobriety level using self-reported symptoms and key input accuracy tests."""
+    """알겠주 서비스에서 자가진단 및 타자 정확도 테스트를 통해 사용자의 취기 상태를 측정하고 안전 보호 모드를 판단합니다."""
     session = get_default_session()
     session["safety_state"]["drunk_level"] = feel_level
 
@@ -220,23 +266,41 @@ def drunk_self_check(
     return f"👍 비교적 안정 상태입니다. 현재 상태: {feel_level}, 타자 점수: {typing_score}"
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 불편한 술자리를 자연스럽게 벗어나기 위한 가짜 전화 시나리오와 행동 가이드를 생성합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 비상 탈출 전화",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def trigger_escape_call(
     caller_name: str = "엄마",
     scenario_type: str = "급한 일"
 ) -> str:
-    """Generates a fake call scenario script and provides action guides to exit uncomfortable drinking spots."""
+    """알겠주 서비스에서 불편한 술자리를 자연스럽게 벗어나기 위한 가짜 전화 시나리오와 행동 가이드를 생성합니다."""
     session = get_default_session()
     session["safety_state"]["escape_requested"] = True
     return f"📞 {caller_name}에게서 '{scenario_type}' 상황의 가짜 전화 시나리오를 시작합니다. 자연스럽게 자리를 정리하고 나와 주세요."
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 안전 귀가 절차를 시작하고 현재 위치와 챙겨야 할 소지품 체크리스트를 안내합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 안전 귀가 시작",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def start_safe_return(
     current_location: str,
     eta_minutes: int = 40
 ) -> str:
-    """Initiates safe return home procedure. Prepares checklists and taxi call links."""
+    """알겠주 서비스에서 안전 귀가 절차를 시작하고 현재 위치와 챙겨야 할 소지품 체크리스트를 안내합니다."""
     session = get_default_session()
     session["safety_state"]["safe_return_started"] = True
     session["safety_state"]["location_checkpoint"] = current_location
@@ -249,12 +313,21 @@ def start_safe_return(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    description="알겠주 서비스에서 목표 대비 실제 음주량, 지출 금액 및 다음 날 숙취 상태를 비교하는 음주 회고 리포트를 생성합니다.",
+    annotations=ToolAnnotations(
+        title="알겠주 음주 회고 리포트 생성",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
+)
 def generate_recap(
     next_day_condition: str = "숙취 있음",
     estimated_expense: int = 0
 ) -> str:
-    """Generates the morning-after drinking recap summary comparing goals and actual consumption."""
+    """알겠주 서비스에서 목표 대비 실제 음주량, 지출 금액 및 다음 날 숙취 상태를 비교하는 음주 회고 리포트를 생성합니다."""
     session = get_default_session()
     total = session["total_count"]
     goal = session["plan"]["goal_count"]
